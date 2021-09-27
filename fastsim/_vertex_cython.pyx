@@ -14,26 +14,32 @@ cdef double vsim(double mx, double mn, double C1, double C2) nogil:
 def _vertex_similarity(int[:, ::1] mat, double C1=0.5, double C2=1):
     """Calculate vertex similarity between two vectors."""
     cdef double mx, mn, val
-    cdef int i, k, j
+    cdef int idx1, idx2, obs_idx
     cdef Py_ssize_t N = mat.shape[0]
     cdef Py_ssize_t M = mat.shape[1]
 
     result = np.zeros((N, N), dtype=float)
     cdef double[:, ::1] result_view = result
 
-    for i in prange(N, nogil=True):
-        for k in range(i, N):
+    for idx1 in prange(N, nogil=True):
+        for idx2 in range(idx1, N):
             val = 0
-            for j in range(M):
-                if mat[i, j] > mat[k, j]:
-                    mx, mn = mat[i, j], mat[k, j]
-                else:
-                    mx, mn = mat[k, j], mat[i, j]
+            if idx1 == idx2:
+                for obs_idx in range(M):
+                    mx = mat[idx1, obs_idx]
+                    result_view[idx1, idx1] += vsim(mx, mx, C1, C2)
+
+                continue
+
+            for obs_idx in range(M):
+                mx = mat[idx1, obs_idx]
+                mn = mat[idx2, obs_idx]
+                if mn > mx:
+                    mn, mx = mx, mn
 
                 val += vsim(mx, mn, C1, C2)
 
-            result_view[i, k] += val
-            if i != k:
-                result_view[k, i] += val
+            result_view[idx1, idx2] += val
+            result_view[idx2, idx1] += val
 
     return result

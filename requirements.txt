@@ -1,0 +1,12 @@
+numpy
+
+# build
+cython
+
+# test
+pytest
+pytest-benchmark
+
+# dev
+mypy
+flake8

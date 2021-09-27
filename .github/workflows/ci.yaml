@@ -34,7 +34,7 @@ jobs:
           pip install -r requirements.txt
         name: Install dependencies
       - run: |
-          pip install .
+          pip install -e .
         name: Install package
       - run: pytest --verbose --benchmark-skip
         name: Run tests
@@ -55,10 +55,10 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
         with:
-          python-version: 3.9
+          python-version: ${{ matrix.python-version }}
       - run: pip install build
       - run: python -m build --sdist -o dist/ .
-        if: startsWith(matrix.runs_on, 'ubuntu') && python-version == '3.9'
+        if: startsWith(matrix.runs_on, 'ubuntu') && matrix.python-version == '3.9'
         name: build sdist
       - run: python -m build --wheel -o dist/ .
         name: build wheel

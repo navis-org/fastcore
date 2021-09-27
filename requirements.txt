@@ -8,5 +8,4 @@ pytest
 pytest-benchmark
 
 # dev
-mypy
 flake8

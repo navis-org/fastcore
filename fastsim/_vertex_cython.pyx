@@ -22,14 +22,15 @@ def _vertex_similarity(int[:, ::1] mat, double C1=0.5, double C2=1):
     cdef double[:, ::1] result_view = result
 
     for idx1 in prange(N, nogil=True):
-        for idx2 in range(idx1, N):
-            val = 0
-            if idx1 == idx2:
-                for obs_idx in range(M):
-                    mx = mat[idx1, obs_idx]
-                    result_view[idx1, idx1] += vsim(mx, mx, C1, C2)
+        # diagonal/ self-hit case
+        for obs_idx in range(M):
+            mx = mat[idx1, obs_idx]
+            result_view[idx1, idx1] += vsim(mx, mx, C1, C2)
 
-                continue
+        # populate both triangles of the output matrix
+        # but only compute once for each
+        for idx2 in range(idx1 + 1, N):
+            val = 0
 
             for obs_idx in range(M):
                 mx = mat[idx1, obs_idx]

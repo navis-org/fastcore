@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 
 from ._vertex_cython import _vertex_similarity
 
@@ -24,13 +23,14 @@ def vertex_similarity(mat, C1=0.5, C2=1):
              Pairwise vertex similarity.
 
     """
-    if isinstance(mat, pd.DataFrame):
-        mat = mat.values
-
-    assert isinstance(mat, np.ndarray)
-    return np.array(_vertex_similarity(mat.astype(np.int32),
-                                       C1=np.float64(C1),
-                                       C2=np.float64(C2)))
+    mat = np.asarray(mat, dtype=np.int32)
+    return np.array(
+        _vertex_similarity(
+            mat,
+            C1=np.float64(C1),
+            C2=np.float64(C2)
+        )
+    )
 
 
 def _vertex_similarity_numpy(mat, C1=0.5, C2=1):

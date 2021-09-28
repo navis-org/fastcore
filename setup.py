@@ -12,6 +12,7 @@ ext_modules = [
 
 setup(
     name='fastsim',
-    cmdclass = {'build_ext': build_ext},
+    cmdclass={'build_ext': build_ext},
+    install_requires=["numpy"],
     ext_modules=ext_modules,
 )

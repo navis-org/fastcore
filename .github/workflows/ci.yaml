@@ -29,6 +29,7 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
+      - run: bash build_tools/preflight.sh
       - run: |
           pip install -U pip wheel setuptools
           pip install -r requirements.txt

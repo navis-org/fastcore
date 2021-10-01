@@ -3,7 +3,7 @@ import numpy as np
 from ._vertex_cython import _vertex_similarity
 
 
-__all__ = ['vertex_similarity']
+__all__ = ['vertex_similarity', "_vertex_similarity_numpy"]
 
 
 def vertex_similarity(mat, C1=0.5, C2=1):
@@ -43,7 +43,8 @@ def _vertex_similarity_numpy(mat, C1=0.5, C2=1):
         vecA = mat[i]
         for k in range(len(mat)):
             vecB = mat[k]
-            # np.minimum is much faster than np.min(np.vstack(vecA, vecB), axis=1) here
+            # np.minimum is much faster than
+            # np.min(np.vstack(vecA, vecB), axis=1) here
             this_max = np.maximum(vecA, vecB)
             this_min = np.minimum(vecA, vecB)
 

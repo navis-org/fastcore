@@ -130,4 +130,4 @@ dmypy.json
 
 .DS_store
 
-fastsim/*.c
+fastcore/*.c

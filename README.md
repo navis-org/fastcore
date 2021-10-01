@@ -1,11 +1,8 @@
-# fastsim
-Fast connectivity similarity calculations written in Cython.
+# navis-fastcore [WIP]
+Fast core functions for navis re-implemented in Cython.
 
 Currently implemented:
 - vertex similarity (Jarrell et al., 2012)
-
-The performance increase varies but appears to be around 1 order of magnitude
-compared with a pure Python + numpy implementation.
 
 ## Installation
 I'm still figuring out the best way for building and packaging. For now,

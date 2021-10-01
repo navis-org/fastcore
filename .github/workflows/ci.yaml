@@ -17,55 +17,60 @@ jobs:
       - run: pip install flake8
       - run: flake8 .
 
-  test:
+  # Build the wheels for Linux and macOS for Python 3.7 and newer
+  build_wheels:
+    name: Build wheel for cp${{ matrix.python }}-${{ matrix.platform_id }}-${{ matrix.manylinux_image }}
+    runs-on: ${{ matrix.os }}
+    needs: [lint]
+
     strategy:
+      # Ensure that a wheel builder finishes even if another fails
       fail-fast: false
       matrix:
-        python-version: ['3.6', '3.7', '3.8', '3.9', '3.10.0-beta - 3.10.0']
-        runs-on: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{ matrix.runs-on }}
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
-      - run: bash build_tools/preflight.sh
-      - run: |
-          pip install -U pip wheel setuptools
-          pip install -r requirements.txt
-        name: Install dependencies
-      - run: |
-          pip install -e .
-        name: Install package
-      - run: pytest --verbose --benchmark-skip
-        name: Run tests
-      # benchmark once per OS to save time
-      - run: pytest --verbose --benchmark-only
-        if: matrix.python-version == '3.9'
-        name: Run benchmarks
+        os: [ubuntu-latest, macos-latest]
+        python: [37, 38, 39]
+        bitness: [32, 64]
+        manylinux_image: [manylinux1, manylinux2010]
+        include:
+          # Run 32 and 64 bit version in parallel for Linux and Windows
+          - os: ubuntu-latest
+            bitness: 64
+            platform_id: manylinux_x86_64
+          - os: ubuntu-latest
+            bitness: 32
+            platform_id: manylinux_i686
+          - os: macos-latest
+            bitness: 64
+            platform_id: macosx_x86_64
+        exclude:
+          - os: macos-latest
+            bitness: 32
+          # Remove manylinux1 from the windows and osx build matrix since
+          # manylinux_image is not used for these platforms
+          - os: macos-latest
+            manylinux_image: manylinux1
 
-  deploy-package:
-    strategy:
-      matrix:
-        python-version: ['3.6', '3.7', '3.8', '3.9']
-        runs-on: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ubuntu-18.04
-    needs: [lint, test]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
-      - run: bash build_tools/preflight.sh
-      - run: pip install build
-      - run: python -m build --sdist -o dist/ .
-        if: startsWith(matrix.runs_on, 'ubuntu') && matrix.python-version == '3.9'
-        name: build sdist
-      - run: python -m build --wheel -o dist/ .
-        name: build wheel
-      - name: Publish package
-        uses: pypa/gh-action-pypi-publish@master
-        with:
-          user: __token__
-          password: ${{ secrets.pypi_token }}
+      - name: Checkout fastcore
+        uses: actions/checkout@v1
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+
+      - name: Build and test wheels
+        env:
+          CONFTEST_PATH: ${{ github.workspace }}/conftest.py
+          CONFTEST_NAME: conftest.py
+          CIBW_ENVIRONMENT: OMP_NUM_THREADS=2
+                            OPENBLAS_NUM_THREADS=2
+                            SKLEARN_SKIP_NETWORK_TESTS=1
+                            SKLEARN_BUILD_PARALLEL=3
+                            MACOSX_DEPLOYMENT_TARGET=10.13
+          CIBW_BUILD: cp${{ matrix.python }}-${{ matrix.platform_id }}
+          CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.manylinux_image }}
+          CIBW_MANYLINUX_I686_IMAGE: ${{ matrix.manylinux_image }}
+          CIBW_TEST_REQUIRES: pytest pandas threadpoolctl
+          CIBW_TEST_COMMAND: bash {project}/build_tools/github/test_wheels.sh
+          CIBW_BUILD_VERBOSITY: 1
+
+        run: bash build_tools/github/build_wheels.sh

@@ -1,17 +1,22 @@
 # navis-fastcore [WIP]
-Fast core functions for navis re-implemented in Cython.
+Fast core functions for `navis` re-implemented in Cython.
+
+The idea is that `navis` will use `fastcore` if installed and fall back to
+the pure-Python / numpy functions if not.
 
 Currently implemented:
 - vertex similarity (Jarrell et al., 2012)
 
 ## Installation
-I'm still figuring out the best way for building and packaging. For now,
-you will need to do it yourself:
+I'm still figuring out the best way for building and packaging pre-compiled
+binaries (i.e. wheels). For now, you will need to compile it yourself during
+setup. This requires a C-compiler to be present (see
+[here](https://cython.readthedocs.io/en/latest/src/quickstart/install.html)) for
+a very brief explanation.
 
-1. Clone this repository
-2. Install `cython`: `pip3 install cython`
-3. CD into the repo
-4. Run `python setup.py build_ext --inplace`
+```bash
+pip3 install git+git://github.com/navis-org/fastcore@main
+```
 
 ### Troubleshooting
 

@@ -7,7 +7,7 @@ from Cython.Build import build_ext
 if platform.system() == "Windows":
     compile_args = ["/openmp"]
 elif platform.system() == "Darwin":
-    compile_args = ["-Xpreprocessor", "-fopenmp", "-std=c++11"]
+    compile_args = ["-Xpreprocessor", "-fopenmp"]
 else:
     compile_args = ["-fopenmp", "-std=c++11"]
 

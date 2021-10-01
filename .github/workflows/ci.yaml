@@ -17,9 +17,8 @@ jobs:
       - run: pip install flake8
       - run: flake8 .
 
-  # Build the wheels for Linux and macOS for Python 3.7 and newer
   build_wheels:
-    name: Build wheel for cp${{ matrix.python }}-${{ matrix.platform_id }}-${{ matrix.manylinux_image }}
+    name: Build wheel for cp${{ matrix.python }}-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     needs: [lint]
 
@@ -28,11 +27,9 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python: [37, 38, 39]
+        python: [36, 37, 38, 39]
         bitness: [32, 64]
-        manylinux_image: [manylinux1, manylinux2010]
         include:
-          # Run 32 and 64 bit version in parallel for Linux and Windows
           - os: ubuntu-latest
             bitness: 64
             platform_id: manylinux_x86_64
@@ -45,30 +42,19 @@ jobs:
         exclude:
           - os: macos-latest
             bitness: 32
-          # Remove manylinux1 from the windows and osx build matrix since
-          # manylinux_image is not used for these platforms
-          - os: macos-latest
-            manylinux_image: manylinux1
 
     steps:
-      - name: Checkout fastcore
-        uses: actions/checkout@v1
+      - name: Checkout CPT
+        uses: actions/checkout@v2
 
       - name: Setup Python
         uses: actions/setup-python@v2
 
       - name: Build and test wheels
         env:
-          CONFTEST_PATH: ${{ github.workspace }}/conftest.py
-          CONFTEST_NAME: conftest.py
-          CIBW_ENVIRONMENT: OMP_NUM_THREADS=2
-                            OPENBLAS_NUM_THREADS=2
-                            SKLEARN_SKIP_NETWORK_TESTS=1
-                            SKLEARN_BUILD_PARALLEL=3
-                            MACOSX_DEPLOYMENT_TARGET=10.13
+          CIBW_BEFORE_BUILD: "python -m pip install cython>=0.20"
           CIBW_BUILD: cp${{ matrix.python }}-${{ matrix.platform_id }}
-          CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.manylinux_image }}
-          CIBW_MANYLINUX_I686_IMAGE: ${{ matrix.manylinux_image }}
+          CIBW_BEFORE_TEST: "CC=gcc CXX=g++"
           CIBW_BUILD_VERBOSITY: 1
 
         run: bash build_tools/build_wheels.sh

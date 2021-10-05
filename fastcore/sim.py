@@ -1,6 +1,6 @@
 import numpy as np
 
-from ._vertex_cython import _vertex_similarity
+from ._sim import _vertex_similarity
 
 
 __all__ = ['vertex_similarity', "_vertex_similarity_numpy"]

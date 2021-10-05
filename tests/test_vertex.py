@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from fastcore.vertex import vertex_similarity, _vertex_similarity_numpy
+from fastcore.sim import vertex_similarity, _vertex_similarity_numpy
 
 
 @pytest.mark.parametrize(

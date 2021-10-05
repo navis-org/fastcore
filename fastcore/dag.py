@@ -8,7 +8,11 @@ graph traversal) much easier than for general graphs.
 
 import numpy as np
 
-from ._dag import _node_indices, _shortest_path_undirected, _shortest_path_directed
+from ._dag import (_node_indices, _shortest_path_undirected,
+                   _shortest_path_directed, _geodesic_matrix)
+
+
+__all__ = ['geodesic_matrix', 'shortest_path']
 
 
 def shortest_path(node_ids, parent_ids, source, target, directed=False):

@@ -14,8 +14,8 @@ else:
 
 ext_modules = [
     Extension(
-        "fastcore._vertex",
-        ["fastcore/_vertex.pyx"],
+        "fastcore._sim",
+        ["fastcore/_sim.pyx"],
         extra_compile_args=compile_args,
         extra_link_args=compile_args,
     ),

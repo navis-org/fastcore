@@ -6,21 +6,9 @@ defaults:
     shell: bash
 
 jobs:
-
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.x'
-      - run: pip install flake8
-      - run: flake8 .
-
   build_wheels:
     name: Build wheel for cp${{ matrix.python }}-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    needs: [lint]
 
     strategy:
       # Ensure that a wheel builder finishes even if another fails

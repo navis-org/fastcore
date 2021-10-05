@@ -14,24 +14,25 @@ from ._dag import _node_indices, _shortest_path_undirected, _shortest_path_direc
 def shortest_path(node_ids, parent_ids, source, target, directed=False):
     """Find shortest path between two nodes.
 
-    This implementation is ~40x faster than igraph's `get_shortest_paths` and
-    ~180x faster than `networkx.shortest_path` (both of which generalize to
-    non-DAGs).
+    This implementation is ~40x faster than iGraph's `get_shortest_paths` and
+    ~180x faster than `networkx.shortest_path` (both of which need to generalize
+    to non-DAGs - which we don't).
 
     Parameters
     ----------
-    node_ids :  (N, ) array
-                Array of node IDs.
-    parents :   (N, ) array
-                Array of parent IDs for each node. Root nodes' parents must be -1.
-    source :    int
-                ID of source node.
-    target :    int
-                ID of target node.
-    directed :  bool
-                If False, will only traverse the graph in child -> parent
-                direction. This effectively means that source has to be
-                distal to target for a path to exist!
+    node_ids :   (N, ) array
+                 Array of int32 node IDs.
+    parent_ids : (N, ) array
+                 Array of int32 parent IDs for each node. Root nodes' parents
+                 must be -1.
+    source :     int
+                 ID of source node.
+    target :     int
+                 ID of target node.
+    directed :   bool
+                 If False, will only traverse the graph in child -> parent
+                 direction. This effectively means that source has to be
+                 distal to target for a path to exist!
 
     Returns
     -------
@@ -46,6 +47,12 @@ def shortest_path(node_ids, parent_ids, source, target, directed=False):
                 If no path between source and target.
 
     """
+    # Some initial sanity checks
+    node_ids = np.asanyarray(node_ids)
+    parent_ids = np.asanyarray(parent_ids)
+    assert node_ids.shape == parent_ids.shape
+    assert node_ids.ndim == 1 and parent_ids.ndim == 1
+
     # Make sure we have the correct data types
     node_ids = node_ids.astype('long', order='C', copy=False)
     parent_ids = parent_ids.astype('long', order='C', copy=False)
@@ -53,6 +60,8 @@ def shortest_path(node_ids, parent_ids, source, target, directed=False):
     # Convert parent IDs into indices
     parent_ix = _node_indices(parent_ids, node_ids)
 
+    source = int(source)
+    target = int(target)
     if source not in node_ids:
         raise ValueError(f'Source "{source}" not in node IDs.')
     if target not in node_ids:

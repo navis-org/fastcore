@@ -148,19 +148,87 @@ def _shortest_path_directed(long[::1] parents, long source, long target):
             source_path_view[idx] = p_source
             break
 
-    # One final increment because we are re-using idx1
-    # as length for source_path_view
-    idx += 1
-
     # Return now if we met `target` on the way
     if p_source == target:
-        return source_path[:idx]
+        return source_path[:idx + 1]
 
     return False
 
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
+def _path_to_root(long[::1] parents, long node):
+    """Return path from given node to root.
+
+    Parameters
+    ----------
+    parents :   (N, ) array
+                Indices (!) of parent node for each node.
+    node :      int
+                Index of start node.
+
+    Returns
+    -------
+    path :      (M, ) array
+                Array of node indices making up the path between node and
+                the root.
+    """
+    path = np.empty(len(parents), dtype='long')
+    path[:] = -1
+
+    cdef long[::1] path_view = path
+
+    cdef long idx
+    cdef Py_ssize_t N = len(parents)
+
+    # Walk from node to root
+    idx = 0
+    while node >= 0:
+        path_view[idx] = node
+        idx += 1
+        node = parents[node]
+
+    return path[:idx]
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def _all_paths_to_root(long[::1] parents):
+    """Return paths from all nodes to root.
+
+    Parameters
+    ----------
+    parents :   (N, ) array
+                Indices (!) of parent node for each node.
+
+    Returns
+    -------
+    paths :     (N, N) array
+                Array of node indices making up the path between node and
+                the root. Each row is a path to root. Unused cells will be -1.
+
+    """
+    paths = np.empty((len(parents), len(parents)), dtype='long')
+    paths[:, :] = -1
+
+    cdef long[:, ::1] paths_view = paths
+    cdef long[::1] parents_view = parents
+
+    cdef long idx1, idx2, node
+    cdef Py_ssize_t N = len(parents)
+
+    # Walk from each node to the root
+    for idx1 in prange(N, nogil=True):
+      node = idx1
+      for idx2 in range(N):
+        paths_view[idx1, idx2] = node
+        node = parents_view[node]
+
+        if node < 0:
+          break
+
+    return paths
+
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -243,12 +311,81 @@ def _geodesic_matrix(long[::1] parents):
                 node2 = l2
 
     return dists
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def _dist_to_root(long[::1] parents, long node):
+    """Return path length from given node to root.
+
+    Parameters
+    ----------
+    parents :   (N, ) array
+                Indices (!) of parent node for each node.
+    node :      int
+                Index of start node.
+
+    Returns
+    -------
+    dist :      int
+                Distance (in steps) to root.
+
+    """
+    cdef long dist
+    cdef Py_ssize_t N = len(parents)
+    cdef long[::1] parents_view = parents
+
+    # Walk from node to root
+    dist = 0
+    while node >= 0:
+        dist += 1
+        node = parents_view[node]
+
+    return dist
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def _all_dists_to_root(long[::1] parents):
+    """Return path length from all nodes to root.
+
+    Parameters
+    ----------
+    parents :   (N, ) array
+                Indices (!) of parent node for each node.
+
+    Returns
+    -------
+    dists :     (N, ) array
+                Distance (in steps) to root.
+
+    """
+    cdef long i, node
+    cdef Py_ssize_t N = len(parents)
+    dists = np.zeros(len(parents), dtype='long')
+    cdef long[::1] dists_view = dists
+    cdef long[::1] parents_view = parents
+
+    for i in prange(N, nogil=True):
+        # Walk from node to root
+        node = i
+        while node >= 0:
+            dists_view[i] += 1
+            node = parents_view[node]
+
+    return dists
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
 def _node_indices(long[::1] A, long[::1] B):
-    """For each node ID in A find the index in B.
+    """For each node ID in A find its index in B.
 
-    Typically `A` will be parent IDs and `B` will be parent IDs.
-    Negative IDs (i.e. root parents) will be passed through.
+    Typically `A` will be parent IDs and `B` will be node IDs.
+    Negative IDs (= parents of root nodes) will be passed through.
 
+    Note that there is no check whether all IDs in A actually exist in B. If
+    an ID in B does not exist in B it will have a negative index (like roots).
     """
     cdef long i, k
     cdef Py_ssize_t lenA = len(A)

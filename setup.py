@@ -14,8 +14,14 @@ else:
 
 ext_modules = [
     Extension(
-        "fastcore._vertex_cython",
-        ["fastcore/_vertex_cython.pyx"],
+        "fastcore._vertex",
+        ["fastcore/_vertex.pyx"],
+        extra_compile_args=compile_args,
+        extra_link_args=compile_args,
+    ),
+    Extension(
+        "fastcore._dag",
+        ["fastcore/_dag.pyx"],
         extra_compile_args=compile_args,
         extra_link_args=compile_args,
     )

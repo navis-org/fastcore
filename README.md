@@ -2,10 +2,13 @@
 Fast core functions for `navis` re-implemented in Cython.
 
 The idea is that `navis` will use `fastcore` if installed and fall back to
-the pure-Python / numpy functions if not.
+the pure-Python / numpy implementation if not.
 
 Currently implemented:
 - vertex similarity (Jarrell et al., 2012)
+- shortest path from source to target
+
+See further down for details.
 
 ## Installation
 I'm still figuring out the best way for building and packaging pre-compiled
@@ -15,7 +18,7 @@ setup. This requires a C-compiler to be present (see
 a very brief explanation.
 
 ```bash
-pip3 install git+git://github.com/navis-org/fastcore@main
+$ pip3 install git+git://github.com/navis-org/fastcore@main
 ```
 
 ### Troubleshooting
@@ -34,4 +37,12 @@ is actually used:
 export PATH="/usr/local/opt/llvm/bin:$PATH"
 export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
 export CPPFLAGS="-I/usr/local/opt/llvm/include"
+```
+
+### Develop
+
+To compile the extensions in place:
+
+```bash
+$ python setup.py build_ext --inplace
 ```

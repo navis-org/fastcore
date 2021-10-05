@@ -78,6 +78,45 @@ def shortest_path(node_ids, parent_ids, source, target, directed=False):
     return path
 
 
+def geodesic_matrix(node_ids, parent_ids):
+    """Calculate all-by-all geodesic distances.
+
+    This implementation is ~10x faster the implementation in navis which
+    uses scipy's `csgraph`.
+
+    Parameters
+    ----------
+    node_ids :   (N, ) array
+                 Array of int32 node IDs.
+    parent_ids : (N, ) array
+                 Array of int32 parent IDs for each node. Root nodes' parents
+                 must be -1.
+
+    Returns
+    -------
+    matrix :    (N, N) array
+                All-by-all geodesic distances.
+
+    """
+    # Some initial sanity checks
+    node_ids = np.asanyarray(node_ids)
+    parent_ids = np.asanyarray(parent_ids)
+    assert node_ids.shape == parent_ids.shape
+    assert node_ids.ndim == 1 and parent_ids.ndim == 1
+
+    # Make sure we have the correct data types
+    node_ids = node_ids.astype('long', order='C', copy=False)
+    parent_ids = parent_ids.astype('long', order='C', copy=False)
+
+    # Convert parent IDs into indices
+    parent_ix = _node_indices(parent_ids, node_ids)
+
+    # Get the actual path
+    dists = _geodesic_matrix(parent_ix)
+
+    return dists
+
+
 class PathError(BaseException):
     """Error indicating that there is no path between source and target."""
 

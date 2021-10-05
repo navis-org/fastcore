@@ -161,6 +161,88 @@ def _shortest_path_directed(long[::1] parents, long source, long target):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def _geodesic_matrix(long[::1] parents):
+    """Return geodesic distance between all nodes.
+
+    Parameters
+    ----------
+    parents :   (N, ) array
+                Indices (!) of parent node for each node.
+
+    Returns
+    -------
+    dists :     (N, N) array
+                Geodesic matrix.
+
+    """
+    # Create the results matrix
+    dists = np.zeros((len(parents), len(parents)), dtype='long')
+    # Set to -1 (for disconnected pieces)
+    dists[:] = - 1
+
+    cdef long[:, ::1] dists_view = dists
+    cdef long[::1] parents_view = parents
+
+    cdef long idx1, idx2, node, d, l1, l2, node1, node2
+    cdef Py_ssize_t N = len(parents)
+
+    # Find the leafs
+    nodes = np.arange(len(parents))
+    leafs = nodes[~np.isin(nodes, parents)]
+    cdef long[::1] leafs_view = leafs
+    cdef Py_ssize_t N3 = len(leafs)
+
+    # Walk from each node to the root
+    for idx1 in range(N):
+        node = idx1
+        d = 0
+        while node >= 0:
+            # Track distance travelled
+            dists_view[idx1, node] = d
+            dists_view[node, idx1] = d
+            node = parents_view[node]
+            d += 1
+
+    # Above, we calculated the "forward" distances but we're still missing
+    # the distances between nodes on separate branches:
+    # Go over all pairs of leafs
+    for idx1 in range(N3):
+        l1 = leafs_view[idx1]
+        for idx2 in range(N3):
+            l2 = leafs_view[idx2]
+            # Skip if we already visited this (i.e. we already did l2->l1)
+            if dists_view[l1, l2] >= 0:
+                continue
+            # Now Find the first common branch point of the two leafs
+            node = l2
+            while node >= 0 and dists_view[l1, node] < 0:
+                node = parents_view[node]
+
+            # If the dist is still <0 then these two leafs never converge
+            if dists_view[l1, node] < 0:
+                continue
+
+            # Now walk towards the common branch point for both leafs and
+            # sum up the respectivve distances to the root nodes
+            node1 = l1
+            node2 = l2
+            while node1 != node and node1 >= 0:
+                while node2 != node and node2 >= 0:
+                    d = dists_view[node1, node] + dists_view[node2, node]
+                    dists_view[node1, node2] = d
+                    dists_view[node2, node1] = d
+
+                    # Move one down on branch 2
+                    node2 = parents_view[node2]
+                # Move one down on branch 1
+                node1 = parents_view[node1]
+                # Reset position on branch 2
+                node2 = l2
+
+    return dists
 def _node_indices(long[::1] A, long[::1] B):
     """For each node ID in A find the index in B.
 

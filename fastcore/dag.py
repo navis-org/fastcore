@@ -94,8 +94,8 @@ def shortest_path(node_ids, parent_ids, source, target, directed=False):
 def geodesic_matrix(node_ids, parent_ids):
     """Calculate all-by-all geodesic distances.
 
-    This implementation is ~10x faster the implementation in navis which
-    uses scipy's `csgraph`.
+    This implementation is up to 100x faster the implementation in navis (which
+    uses scipy's `csgraph`).
 
     Parameters
     ----------

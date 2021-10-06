@@ -277,7 +277,7 @@ def _geodesic_matrix(long[::1] parents):
     # Above, we calculated the "forward" distances but we're still missing
     # the distances between nodes on separate branches:
     # Go over all pairs of leafs
-    for idx1 in range(N3):
+    for idx1 in prange(N3, nogil=True):
         l1 = leafs_view[idx1]
         for idx2 in range(N3):
             l2 = leafs_view[idx2]
@@ -298,7 +298,13 @@ def _geodesic_matrix(long[::1] parents):
             node1 = l1
             node2 = l2
             while node1 != node and node1 >= 0:
+                # Stop early if we meet a node pair we've already visited
+                if dists_view[node1, node2] >= 0:
+                    break
                 while node2 != node and node2 >= 0:
+                    # Stop early if we meet a node pair we've already visited
+                    if dists_view[node1, node2] >= 0:
+                      break
                     d = dists_view[node1, node] + dists_view[node2, node]
                     dists_view[node1, node2] = d
                     dists_view[node2, node1] = d

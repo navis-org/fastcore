@@ -26,6 +26,6 @@ jobs:
     - name: Install navis
       run: |
         python setup.py build_ext --inplace --force
-        pip install . -e
+        pip install -e .
     - name: Test
       run: pytest --verbose

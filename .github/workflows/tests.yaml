@@ -22,7 +22,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install --upgrade pip
-        pip install numpy pytest pytest-benchmark
+        pip install -r requirements.txt
     - name: Install navis
       run: |
         python setup.py build_ext --inplace --force

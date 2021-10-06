@@ -6,7 +6,8 @@ the pure-Python / numpy implementation if not.
 
 Currently implemented:
 - vertex similarity (Jarrell et al., 2012)
-- shortest path from source to target
+- shortest path from source to target (~40x faster than iGraph)
+- geodesic distance matrix (up to 100x faster than scipy)
 
 See further down for details.
 

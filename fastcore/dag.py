@@ -91,7 +91,7 @@ def shortest_path(node_ids, parent_ids, source, target, directed=False):
     return path
 
 
-def geodesic_matrix(node_ids, parent_ids):
+def geodesic_matrix(node_ids, parent_ids, weights=None):
     """Calculate all-by-all geodesic distances.
 
     This implementation is up to 100x faster the implementation in navis (which
@@ -99,15 +99,18 @@ def geodesic_matrix(node_ids, parent_ids):
 
     Parameters
     ----------
-    node_ids :   (N, ) array
+    node_ids :   (N, ) int32 (long) array
                  Array of int32 node IDs.
-    parent_ids : (N, ) array
-                 Array of int32 parent IDs for each node. Root nodes' parents
+    parent_ids : (N, ) int (long) array
+                 Array of parent IDs for each node. Root nodes' parents
                  must be -1.
+    weights :    (N, ) float32 array, optional
+                 Array of distances for each child -> parent connection.
+                 If ``None`` all node to node distances are set to 1.
 
     Returns
     -------
-    matrix :    (N, N) array
+    matrix :    (N, N) float32 (double) array
                 All-by-all geodesic distances.
 
     """
@@ -125,7 +128,7 @@ def geodesic_matrix(node_ids, parent_ids):
     parent_ix = _node_indices(parent_ids, node_ids)
 
     # Get the actual path
-    dists = _geodesic_matrix(parent_ix)
+    dists = _geodesic_matrix(parent_ix, weights=weights)
 
     return dists
 

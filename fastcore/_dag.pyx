@@ -232,30 +232,43 @@ def _all_paths_to_root(long[::1] parents):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def _geodesic_matrix(long[::1] parents):
+def _geodesic_matrix(long[::1] parents, weights=None):
     """Return geodesic distance between all nodes.
 
     Parameters
     ----------
-    parents :   (N, ) array
+    parents :   (N, ) int32 array
                 Indices (!) of parent node for each node.
+    weights :   (N, ) float32 array, optional
+                Weights for each child -> parent connection. If ``None`` each
+                step will increment distance by 1.
 
     Returns
     -------
-    dists :     (N, N) array
+    dists :     (N, N) float 32 array
                 Geodesic matrix.
 
     """
+    cdef long idx1, idx2, node, l1, l2, node1, node2, use_weights
+    cdef double d
+    cdef Py_ssize_t N = len(parents)
+
     # Create the results matrix
-    dists = np.zeros((len(parents), len(parents)), dtype='long')
+    dists = np.zeros((len(parents), len(parents)), dtype='double')
     # Set to -1 (for disconnected pieces)
     dists[:] = - 1
 
-    cdef long[:, ::1] dists_view = dists
-    cdef long[::1] parents_view = parents
+    if isinstance(weights, type(None)):
+        use_weights = 0
+    else:
+        use_weights = 1
+        weights = np.asarray(weights)
+        weights[np.isnan(weights)] = 0
+        weights = weights.astype('double')
 
-    cdef long idx1, idx2, node, d, l1, l2, node1, node2
-    cdef Py_ssize_t N = len(parents)
+    cdef double[:, ::1] dists_view = dists
+    cdef long[::1] parents_view = parents
+    cdef double[::1] weights_view = weights
 
     # Find the leafs
     nodes = np.arange(len(parents))
@@ -267,12 +280,17 @@ def _geodesic_matrix(long[::1] parents):
     for idx1 in range(N):
         node = idx1
         d = 0
-        while node >= 0:
-            # Track distance travelled
+        while node >= 0 and dists_view[idx1, node] < 0:
             dists_view[idx1, node] = d
             dists_view[node, idx1] = d
+
+            # Track distance travelled
+            if use_weights:
+                d += weights_view[node]
+            else:
+                d += 1
+
             node = parents_view[node]
-            d += 1
 
     # Above, we calculated the "forward" distances but we're still missing
     # the distances between nodes on separate branches:
@@ -287,9 +305,10 @@ def _geodesic_matrix(long[::1] parents):
             # Skip if we already visited this (i.e. we already did l2->l1)
             if dists_view[l1, l2] >= 0:
                 continue
-            # Now Find the first common branch point of the two leafs
+            # Now find the first common branch point of the two leafs
+            # (avoid overshooting the root)
             node = l2
-            while node >= 0 and dists_view[l1, node] < 0:
+            while parents_view[node] >= 0 and dists_view[l1, node] < 0:
                 node = parents_view[node]
 
             # If the dist is still <0 then these two leafs never converge

@@ -1,4 +1,6 @@
-# navis-fastcore [WIP]
+[![Tests](https://github.com/navis-org/fastcore/actions/workflows/tests.yaml/badge.svg)](https://github.com/navis-org/fastcore/actions/workflows/tests.yaml) [![CI](https://github.com/navis-org/fastcore/actions/workflows/ci.yaml/badge.svg)](https://github.com/navis-org/fastcore/actions/workflows/ci.yaml)
+
+# navis-fastcore
 Fast core functions for [`navis`](https://github.com/navis-org/navis)
 re-implemented in Cython.
 

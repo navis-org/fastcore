@@ -4,10 +4,23 @@ from fastcore import dag
 # A test neuron with:
 # - 20 nodes
 # - 2 roots (= 2 disconnected pieces)
-# - 3 branch points
+# - 5 branch points
 nodes = np.arange(20)
 parents = np.array([1, 2, 3, 4, 5, 6, 7, 8, -1, 10, 11, 12, 4, 14, 2,
                     16, 17, 18, -1, 16])
+
+
+def test_segments():
+    # Simple segs
+    segs = dag.generate_segments(nodes, parents, weights=None)
+
+    assert len(segs) == 5
+    assert len(segs[0]) == 9
+
+    weights = np.ones(len(parents)) * 10
+    segs2 = dag.generate_segments(nodes, parents, weights=weights)
+
+    assert np.all([np.all(s1 == s2) for s1, s2 in zip(segs, segs2)])
 
 
 def test_geodesic_matrix():

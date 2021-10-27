@@ -9,10 +9,11 @@ graph traversal) much easier than for general graphs.
 import numpy as np
 
 from ._dag import (_node_indices, _shortest_path_undirected,
-                   _shortest_path_directed, _geodesic_matrix)
+                   _shortest_path_directed, _geodesic_matrix,
+                   _generate_segments)
 
 
-__all__ = ['geodesic_matrix', 'shortest_path']
+__all__ = ['geodesic_matrix', 'shortest_path', 'generate_segments']
 
 
 def shortest_path(node_ids, parent_ids, source, target, directed=False):
@@ -94,8 +95,8 @@ def shortest_path(node_ids, parent_ids, source, target, directed=False):
 def geodesic_matrix(node_ids, parent_ids, weights=None):
     """Calculate all-by-all geodesic distances.
 
-    This implementation is up to 100x faster the implementation in navis (which
-    uses scipy's `csgraph`).
+    This implementation is up to 100x faster than the implementation in navis
+    (which uses scipy's `csgraph`).
 
     Parameters
     ----------
@@ -131,6 +132,52 @@ def geodesic_matrix(node_ids, parent_ids, weights=None):
     dists = _geodesic_matrix(parent_ix, weights=weights)
 
     return dists
+
+
+def generate_segments(node_ids, parent_ids, weights=None):
+    """Generate segments maximizing segment lengths.
+
+    This implementation is 10-20x faster than the implementation in navis.
+
+    Parameters
+    ----------
+    node_ids :   (N, ) int32 (long) array
+                 Array of int32 node IDs.
+    parent_ids : (N, ) int (long) array
+                 Array of parent IDs for each node. Root nodes' parents
+                 must be -1.
+    weights :    (N, ) float32 array, optional
+                 Array of distances for each child -> parent connection.
+                 If ``None`` all node to node distances are set to 1.
+
+    Returns
+    -------
+    segments :   list of arrays
+                 Segments as list of arrays, sorted from longest to shortest.
+                 Each segment starts with a leaf and stops with a branch point
+                 or root node.
+
+    """
+    # Some initial sanity checks
+    node_ids = np.asanyarray(node_ids)
+    parent_ids = np.asanyarray(parent_ids)
+    assert node_ids.shape == parent_ids.shape
+    assert node_ids.ndim == 1 and parent_ids.ndim == 1
+
+    # Make sure we have the correct data types
+    node_ids = node_ids.astype('long', order='C', copy=False)
+    parent_ids = parent_ids.astype('long', order='C', copy=False)
+
+    # Convert parent IDs into indices
+    parent_ix = _node_indices(parent_ids, node_ids)
+
+    # Get the actual path
+    segments = _generate_segments(parent_ix, weights=weights)
+
+    # Map node indices back to IDs
+    seg_ids = [node_ids[s] for s in segments]
+
+    return seg_ids
 
 
 class PathError(BaseException):

@@ -237,9 +237,9 @@ def _geodesic_matrix(long[::1] parents, weights=None):
 
     Parameters
     ----------
-    parents :   (N, ) int32 array
+    parents :   (N, ) int32 (long) array
                 Indices (!) of parent node for each node.
-    weights :   (N, ) float32 array, optional
+    weights :   (N, ) float32 (double) array, optional
                 Weights for each child -> parent connection. If ``None`` each
                 step will increment distance by 1.
 
@@ -293,9 +293,12 @@ def _geodesic_matrix(long[::1] parents, weights=None):
             node = parents_view[node]
 
     # Above, we calculated the "forward" distances but we're still missing
-    # the distances between nodes on separate branches:
-    # Go over all pairs of leafs
-    # Important note:
+    # the distances between nodes on separate branches. Our approach now is:
+    # (1) Go over all pairs of leafs, (2) find the first common branch point and
+    # (3) use their respective distances to that branch point to fill in the
+    # missing values in the matrix. We'll be using several stop conditions to
+    # avoid doing the same work twice!
+    # One important note:
     # We can't use `prange` here because filling the matrix with threads
     # messes with our stop conditions!
     for idx1 in range(N3):
@@ -316,7 +319,7 @@ def _geodesic_matrix(long[::1] parents, weights=None):
                 continue
 
             # Now walk towards the common branch point for both leafs and
-            # sum up the respectivve distances to the root nodes
+            # sum up the respective distances to the root nodes
             node1 = l1
             node2 = l2
             while node1 != node and node1 >= 0:
@@ -343,30 +346,44 @@ def _geodesic_matrix(long[::1] parents, weights=None):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def _dist_to_root(long[::1] parents, long node):
+def _dist_to_root(long[::1] parents, long node, weights=None):
     """Return path length from given node to root.
 
     Parameters
     ----------
-    parents :   (N, ) array
+    parents :   (N, ) int32 (long) array
                 Indices (!) of parent node for each node.
     node :      int
                 Index of start node.
+    weights :   (N, ) float32 (double) array, optional
+                Weights for each child -> parent connection. If ``None`` each
+                step will increment distance by 1.
 
     Returns
     -------
-    dist :      int
-                Distance (in steps) to root.
+    dist :      float32
+                Distance to root.
 
     """
-    cdef long dist
+    cdef long use_weights
+    cdef double dist
     cdef Py_ssize_t N = len(parents)
     cdef long[::1] parents_view = parents
+
+    if isinstance(weights, type(None)):
+        use_weights = 0
+    else:
+        use_weights = 1
+        weights = np.asarray(weights).astype('double')
+    cdef double[::1] weights_view = weights
 
     # Walk from node to root
     dist = 0
     while node >= 0:
-        dist += 1
+        if use_weights:
+            dist += weights_view[node]
+        else:
+            dist += 1
         node = parents_view[node]
 
     return dist
@@ -374,31 +391,57 @@ def _dist_to_root(long[::1] parents, long node):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def _all_dists_to_root(long[::1] parents):
-    """Return path length from all nodes to root.
+def _all_dists_to_root(long[::1] parents, sources=None, weights=None):
+    """Return path length from given nodes to root.
 
     Parameters
     ----------
     parents :   (N, ) array
                 Indices (!) of parent node for each node.
+    sources :   (N, ) array, optional
+                Array of node indices (!) from which to calculate distances. If
+                ``None`` will calculate distances to root for all nodes.
+    weights :   (N, ) float32 array, optional
+                Weights for each child -> parent connection. If ``None`` each
+                step will increment distance by 1. For roots the distance
+                should be 0!
 
     Returns
     -------
-    dists :     (N, ) array
-                Distance (in steps) to root.
+    dists :     (N, ) float32 (double) array
+                Distances to root.
 
     """
-    cdef long i, node
-    cdef Py_ssize_t N = len(parents)
-    dists = np.zeros(len(parents), dtype='long')
-    cdef long[::1] dists_view = dists
-    cdef long[::1] parents_view = parents
+    if isinstance(sources, type(None)):
+        sources = np.arange(len(parents), dtype='long')
 
+    cdef long i, node, use_weights
+    cdef Py_ssize_t N = len(sources)
+    dists = np.zeros(len(sources), dtype='double')
+    cdef double[::1] dists_view = dists
+    cdef long[::1] parents_view = parents
+    cdef long[::1] sources_view = sources
+
+    if isinstance(weights, type(None)):
+        use_weights = 0
+        dists[:] = -1   # this offset the fact that even root gets +1 later on
+    else:
+        use_weights = 1
+        weights = np.asarray(weights).astype('double')
+    cdef double[::1] weights_view = weights
+
+    # Note to self:
+    # There might be mileage in using a single thread (i.e. not prange) but
+    # checking whether a node's parent has already been traversed in which case
+    # we can simply sum up the distances.
     for i in prange(N, nogil=True):
         # Walk from node to root
-        node = i
+        node = sources_view[i]
         while node >= 0:
-            dists_view[i] += 1
+            if use_weights:
+                dists_view[i] += weights_view[node]
+            else:
+                dists_view[i] += 1
             node = parents_view[node]
 
     return dists
@@ -413,7 +456,7 @@ def _node_indices(long[::1] A, long[::1] B):
     Negative IDs (= parents of root nodes) will be passed through.
 
     Note that there is no check whether all IDs in A actually exist in B. If
-    an ID in B does not exist in B it will have a negative index (like roots).
+    an ID in A does not exist in B it gets a negative index (i.e. like roots).
     """
     cdef long i, k
     cdef Py_ssize_t lenA = len(A)
@@ -436,3 +479,77 @@ def _node_indices(long[::1] A, long[::1] B):
                 break
 
     return indices
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def _generate_segments(long[::1] parents, weights=None):
+    """Generate linear segments while maximizing segment lengths.
+
+    Parameters
+    ----------
+    parents :   (N, ) array
+                Indices (!) of parent node for each node.
+    weights :   (N, ) float32 array, optional
+                Weights for each child -> parent connection.
+                If provided, use those to maximize the segments
+                lengths.
+
+    Returns
+    -------
+    list
+                List of arrays of node indices (!).
+
+    """
+    cdef long idx, node, i
+
+    seg = np.zeros(len(parents), dtype='long')
+    cdef long[::1] seg_view = seg
+    seen = np.zeros(len(parents), dtype='long')
+    cdef long[::1] seen_view = seen
+    cdef long[::1] parents_view = parents
+
+    nodes = np.arange(len(parents))
+    leafs = nodes[~np.isin(nodes, parents)]
+    cdef long[::1] leafs_view = leafs
+    cdef Py_ssize_t N = len(leafs)
+
+    # Sort leafs so that we start with the most distal leafs
+    dists = _all_dists_to_root(parents, weights=weights)
+    leafs = leafs[np.argsort(dists[leafs])][::-1]
+
+    # Walk from each node to the root
+    all_segs = []
+    for idx in range(N):
+        # Reset segment and counter
+        seg_view[:] = -1
+        i = 0
+        # Start with this leaf node
+        node = leafs_view[idx]
+        # Iterate until we hit root
+        while node >= 0:
+            # Add this node to the segment
+            seg_view[i] = node
+
+            # Increment counter
+            i += 1
+
+            # If the node has already been seen
+            if seen_view[node]:
+                break
+
+            # Add this node to the seen nodes
+            seen_view[node] = 1
+
+            # Pick the next node
+            node = parents_view[node]
+
+        # Track this segment
+        all_segs.append(nodes[seg[:i]])
+
+    # Sort segments by length
+    all_segs = sorted(all_segs,
+                      key=lambda x: dists[x[0]] - dists[x[len(x) - 1]],
+                      reverse=True)
+
+    return all_segs

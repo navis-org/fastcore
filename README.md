@@ -22,7 +22,7 @@ setup. This requires a C-compiler to be present (see
 a very brief explanation).
 
 ```bash
-$ pip3 install git+git://github.com/navis-org/fastcore@main
+$ pip3 install git+https://github.com/navis-org/fastcore@main
 ```
 
 ## Examples

@@ -1,5 +1,8 @@
 [![Tests](https://github.com/navis-org/fastcore/actions/workflows/tests.yaml/badge.svg)](https://github.com/navis-org/fastcore/actions/workflows/tests.yaml) [![CI](https://github.com/navis-org/fastcore/actions/workflows/ci.yaml/badge.svg)](https://github.com/navis-org/fastcore/actions/workflows/ci.yaml)
 
+> [!IMPORTANT]  
+> This project has been superseded by [`fastcore-rs`](https://github.com/schlegelp/fastcore-rs) which is based on Rust and is now actively used in `navis`.
+
 # navis-fastcore
 Fast core functions for [`navis`](https://github.com/navis-org/navis)
 re-implemented in Cython.
